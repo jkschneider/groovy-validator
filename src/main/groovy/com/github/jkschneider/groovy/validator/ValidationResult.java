@@ -13,10 +13,19 @@ public class ValidationResult<E> {
         this.failures = failures;
     }
 
-    public void either(Consumer<E> successHandler, Consumer<Collection<ValidationFailure>> failureHandler) {
+    public void either(Consumer<E> successHandler, Consumer<Collection<ValidationFailure>> failuresHandler) {
         validated.ifPresent(successHandler);
         if(!validated.isPresent())
-            failureHandler.accept(failures);
+            failuresHandler.accept(failures);
+    }
+
+    public void ifPassed(Consumer<E> successHandler) {
+        validated.ifPresent(successHandler);
+    }
+
+    public void ifFailed(Consumer<Collection<ValidationFailure>> failuresHandler) {
+        if(!validated.isPresent())
+            failuresHandler.accept(failures);
     }
 
     public boolean passed() { return failures.isEmpty(); }

@@ -63,11 +63,6 @@ class Validator<E> {
         this
     }
 
-    Validator<E> and(Closure c){
-        checks.addAll(new ValidationCheck(closure: c))
-        this
-    }
-
     Validator<E> jsr303(Class<E> eClass) {
         def tests = recurseApplyJsr303(eClass, [], "")
         checks.addAll(tests)

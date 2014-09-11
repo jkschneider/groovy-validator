@@ -28,14 +28,6 @@ class ValidationSpec extends Specification {
         LocalDate birthDate
     }
 
-    void "Validation passes with the same check on 2 fields"() {
-        when:
-        def validator = new Validator<Person>().has("email2", email).has("email",email)
-
-        then:
-        validator.validate(new Person(email: "place@place.com",email2: "bad")).failed()
-    }
-
     void "Validator does not stop checking on first AND condition that is not satisfied"() {
         given:
         def lastNameValidator = new Validator<Person>().has("lastName", minLength(5),
@@ -209,7 +201,7 @@ class ValidationSpec extends Specification {
         emailValidator2.validate(new Person(email: "")).failed()
     }
 
-    void "Validator allows for validation on a optional field"() {
+    void "Validator allows for validation on an optional field"() {
         when:
         def ageValidator = new Validator<Person>().ifPresent("age", min(16))
         def middleNameValidator = new Validator<Person>().ifPresent("middleName", nonEmpty)
@@ -242,54 +234,56 @@ class ValidationSpec extends Specification {
     }
 
     void "Validator supports `or` predicates coerced from closures"() {
-        when:
+        setup:
         def genderValidator = new Validator<Person>().has("gender",
                 or(check({ it == "male" }, "must be a male"), check({ it == "female" }, "must be a female")))
 
-        then:
-        genderValidator.validate(new Person(gender: "male")).passed()
-        genderValidator.validate(new Person(gender: "female")).passed()
-        genderValidator.validate(new Person(gender: "uhhh")).failed()
+        expect:
+        genderValidator.validate(new Person(gender: gender)).passed() == passed
+
+        where:
+        gender      |   passed
+        'female'    |   true
+        'male'      |   true
+        'uhh'       |   false
     }
 
     void "Validator supports multiple field validation"() {
-        when:
-        def comprehensiveValidator = new Validator<Person>().has("age", min(16))
+        setup:
+        def comprehensiveValidator = new Validator<Person>()
+                .has("age", min(16))
                 .has("gender", oneOf("male", "female"))
                 .ifPresent("email", check({ it.contains("@") }, "must contain a @"))
 
-        and:
-        ValidationResult<Person> unknownGender = comprehensiveValidator.validate(new Person(age: 16, gender: "uhhh"))
-        ValidationResult<Person> unknownGenderAndTooYoung = comprehensiveValidator.validate(new Person(age: 14, gender: "uhhh"))
+        expect:
+        comprehensiveValidator.validate(person).failures.size() == totalFailures
 
-        then: // age check
-        comprehensiveValidator.validate(new Person(age: 16, gender: "female")).passed()
-        comprehensiveValidator.validate(new Person(age: 15, gender: "male")).failed()
+        where:
+        age     |   gender  |   totalFailures
+        16      |   'uhh'   |   1
+        14      |   'uhh'   |   2
 
-        and: // gender check
-        unknownGender.failed()
-        unknownGender.failures.size() == 1
-
-        and: // dual check
-        unknownGenderAndTooYoung.failed()
-        unknownGenderAndTooYoung.failures.size() == 2
-
-        and: // email check
-        comprehensiveValidator.validate(new Person(age: 16, gender: "male", email: "jon@jon.com")).passed()
-        comprehensiveValidator.validate(new Person(age: 16, gender: "male", email: "jon")).failed()
+        person = new Person(age: age, gender: gender)
     }
 
     void "Validator checks supported JSR303 annotations when asked"() {
-        when:
+        setup:
         def lastNameValidator = new Validator<Person>().jsr303(Person.class)
 
-        then:
-        lastNameValidator.validate(new Person(lastName: "schneider", address: new Address(address1: "someplace"))).passed()
-        lastNameValidator.validate(new Person(lastName: "schneider", address: new Address())).failed()
-        lastNameValidator.validate(new Person(address: new Address(address1: "someplace"))).failed()
-        lastNameValidator.validate(new Person()).failed()
+        expect:
+        lastNameValidator.validate(person).passed() == passed
+
+        where:
+        name          | address                             |   passed
+        'schneider'   | new Address(address1: 'someplace')  |   true
+        'schneider'   | new Address()                       |   false
+        null          | new Address(address1: 'someplace')  |   false
+        null          | null                                |   false
+
+        person = new Person(lastName: name, address: address)
     }
 
+    // Jackson can care about the difference if the string is a generic type of a parametric type
     void "Validation failure messages are always instances of String (not GString)"() {
         given:
         def validator = new Validator<Person>().ifPresent("firstName", oneOf("Steve", "steve", "STEVE"))
@@ -306,12 +300,11 @@ class ValidationSpec extends Specification {
         fails[0].class == String
     }
 
-    void "`and` function accepts closures"(){
+    void "Checks are cloned, allowing the same check to be applied to two or more fields"() {
         when:
-        def validator = new Validator<Address>().and({ Address address -> return address.city == "Cityville" && address.state == "Statesburg" })
+        def validator = new Validator<Person>().has("email2", email).has("email",email)
 
         then:
-        validator.validate(new Address(address1: "Street Road", city: "Cityville", state: "Statesburg")).passed()
-        !validator.validate(new Address(address1: "Boulevard Avenue", city: "Township", state: "SadState")).failed()
+        validator.validate(new Person(email: "place@place.com", email2: "bad")).failed()
     }
 }
