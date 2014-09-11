@@ -18,12 +18,6 @@ Introduction
 For all examples, we will use the simple model shown here:
 
 ```groovy
-static class Address {
-    @NotNull String address1
-    String city
-    String state
-}
-
 static class Person {
     @NotNull String lastName
     String firstName
@@ -37,6 +31,25 @@ static class Person {
     LocalDate birthDate
 }
 ```
+
+Built-in validation checks
+---------------------------
+Built-in checks exist for all of the following:
+
+* after/before
+* alphaNumeric
+* dateRange
+* digits
+* email
+* equalTo
+* length
+* min/max
+* minLength/maxLength
+* nonEmpty
+* oneOf
+* pattern
+* range
+
 
 Single field validation
 -----------------------
@@ -74,6 +87,30 @@ Validation rules can be applied only in the event that a field is present.
 ```groovy
 def ageValidator = new Validator<Person>().ifPresent("age", min(16))
 ```
+
+Applying multiple validation rules to a single field
+----------------------------------------------------
+
+When multiple checks are applied to a single field, they are both applied to the field ('and' behavior)
+
+```groovy
+def ageValidator = new Validator<Person>().has("age", min(16), max(50))
+```
+
+Defining custom validation checks
+---------------------------------
+```groovy
+def customValidator = new Validator<Person>().has("lastName", check({ lastName -> lastName == 'smith' }, "custom failure message"))
+```
+
+Defining validation rules that apply to a composite of several fields
+---------------------------------------------------------------------
+
+```groovy
+def compositeValidator = new Validator<Person>().and(
+       check({ Person person -> /* do some fancy work with the whole person object at once */ }))
+```
+
 
 Defining 'or' criteria
 -----------------------
